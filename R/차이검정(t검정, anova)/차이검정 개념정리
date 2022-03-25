@@ -1,0 +1,45 @@
+t-test
+-	기준 평균 신뢰구간에 비교 대상 평균이 있는가 없는가 판단하는 것.
+-	원인(독립)변수는 명목변수 -> 결과(종속)변수는 연속변수
+-	신뢰구간 밖에 있으면 두 데이터 사이엔 통계적으로 유의미한 차이가 존재한다로 해석
+
+
+Step of t-test
+1.	분석 대상의 전제 : 정규분포를 따르는지 확인
+2.	귀무가설(연구할 가치 없는 전제)은 95%. 임의로 세운 기준
+3.	95% 신뢰구간, 2.5% / 2.5% 는 유의구간. 비교 대상 평균이 어디에 위치하는지 파악
+4.	p-value가 0.05 이하면 유의미한 차이가 있음, 이상이면 차이 없음을 의미
+
+
+평균 차이 검정 방법
+1.	t-test : 비교 대상이 두 개까지(그룹)인 경우
+1)	One Sample t-test : 하나의 집단으로 검정.모집단과 비교.
+2)	Independent two sample t-test : 두개의 집단으로 검정. 두 개의 표본집단으로 검정.
+3)	paired sample t-test : 시간 차이(하나의 집단, 쌍체, 대응)
+
+조건
+	결과값이 연속변수이어야 한다.
+	정규분포여야 한다. (Shapiro.test)
+	등분산이어야 한다. (var.test)
+	정규분포 X or 등분산 X 이면 wilcox.test()를 쓴다.* WWM
+
+
+2.	ANOVA : 비교 대상이 세 개 이상(그룹)인 경우
+1)	One Way ANOVA : 집단이 3개 이상일 때 (= Independent two sample t-test)
+예) (ONE-WAY)매장별 고객만족도
+원인 : 매장(매장1, 매장2, 매장3) // 결과 : 고객만족도
+2)	Repeated measured ANOVA : 시간 차이에 따른 차이 검정 (= Paired sample t-test)
+3)	Two way ANOVA : 요인에 따른 차이 검정(원인, 요인이 두 개일 때)
+예) (TWO-WAY)치킨의 맛을 온도, 굽기 방식이 결정하는가?
+원인 : 온도(1000, 1500,2000), 굽기 방식(기름, 오븐) // 결과 : 치킨의 맛
+4)	Two way repeated measured ANOVA : 시간 차이 + 요인에 따른 차이 검정
+예) 실험군, 대조군 + 시험 전, 시험 후 -> 통증 정도
+원인 : 약 투입 유무 / 시간 : 시험 전, 시험 후 / 결과 : 통증 정도
+		*Three-Way 이상은 분석 가능하나 현실적으로 결론 도출, 활용 불가능
+5) 사후검정 : 3개 이상의 비교 대상 중 어느 값들이 차이가 있는지 파악하는 검정
+		Tukey, DUNcan, Bonferroni, Fisher’s LSD
+
+조건
+	결과값이 연속변수이어야 한다. (if not : Kruskal-wallis H test)
+	정규분포여야 한다. (if not : Kruskal-wallis H test)
+	등분산이어야 한다. (if not : welch’s ANOVA)
