@@ -1,0 +1,241 @@
+---
+title: "KOREAN LIFESTYLE ANALYSIS"
+author: "JEONG JAE-HOON"
+date: "10/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(foreign)
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(reshape2)
+par(mfrow=c(1,1))
+
+raw_welfare <- read.spss("../data/koweps_hpc10_2015_beta1.sav", to.data.frame = T)
+welfare <- rename(raw_welfare, sex=h10_g3, birth=h10_g4, marriage=h10_g10,
+                  religion=h10_g11, income=p1002_8aq1, code_job=h10_eco9,
+                  code_region=h10_reg7)
+head(welfare)
+welfare <- welfare[, c("sex", "birth", "marriage", "religion", "income",
+                       "code_job", "code_region")]
+head(welfare)
+```
+
+## KOREAN LIFESTYLE ANALYSIS
+
+Data : 한국복지패널 (2016)
+=====
+Contents :
+  1. 성별에 따른 월급 차이
+  2. 나이와 월급의 관계
+  3. 연령대에 따른 월급 차이
+  4. 연령대 및 성별 월급 차이
+  5. 직업별 월급 차이
+  6. 성별 직업 빈도
+  7. 종교 유무에 따른 이혼율
+  8. 지역별 연령대 비율
+=====
+Summary :
+현재 대한민국은 성별에 따라 월급 차이가 발생하는데, 이는 성별 직업 빈도, 직업의 월급 차이로 판단됨.
+이 외, 종교 유무에 따라 이혼율에 유의미한 차이가 존재하고, 지역별 연령대도 차이가 존재함.
+이와 관련해 변수들을 연속변수로 바꾸고 상관관계, 회귀분석 등 추가적인 관계 분석 필요해보인다. 
+  1. 성별에 따라 직업이 다르고, 직업의 다름으로 인해 월급 차이가 발생하는 것으로 판단됨.
+  2. 나이에 따른 임금 차이는 통계적으로 없는 것으로 판단되나 연령대에 따른 임금 차이는 있는 것으로 판단됨.
+  3. 직업별 월급 차이, 성별 직업 빈도 모두 통계적으로 유의미한 차이가 있는 것으로 판단됨.
+  4. 종교가 있는 사람이 이혼을 통계적으로 더 적게한다 판단 가능하나, 종교유무의 차이는 미비함
+  5. 지역별 연령대 차이는 통계적으로 유의미한 차이를 보임. 
+
+```{r cars}
+head(welfare)
+```
+### 데이터 내 결측치 확인
+```{r cars}
+table(is.na(welfare))
+table(is.na(welfare$sex))
+table(is.na(welfare$birth))
+table(is.na(welfare$marriage))
+table(is.na(welfare$religion))
+table(is.na(welfare$income))
+table(is.na(welfare$code_job))
+table(is.na(welfare$code_region))
+```
+
+## 1. 성별에 따른 월급 차이
+결론 : 성별에 따라 월급 차이가 통계적으로 유의함.
+원인 : 성별(명목) / 결과 : 월급(연속)
+분석방법 : t-test
+월급은 결측치가 있으니 전처리에서 결측치 제거 후 시행
+
+### a. 데이터 가공 및 파악
+```{r pressure, echo=FALSE}
+# 테이블 형태 파악
+str(welfare)
+# data class : Numeric
+
+#칼럼 값들 파악 및 결측치, 이상치 확인 및 제거
+table(welfare$sex)
+# 1은 남자, 2는 여자. 7578(남)+9086(여) = 16664
+table(is.na(welfare$income))
+# 조사 안된 12030개의 데이터는 지워준다.
+sex_income <- welfare %>% select(sex, income) %>%
+  filter(!is.na(income))
+head(sex_income)
+table(is.na(sex_income$income))
+# FALSE
+
+boxplot(sex_income)
+boxplot(sex_income$income[sex_income$sex == 1])
+boxplot(sex_income$income[sex_income$sex == 2])
+
+avg <- sex_income %>% group_by(sex) %>%
+  summarise(mean = mean(income))
+avg
+
+ggplot(data=avg, aes(x=sex, y=mean, fill = mean)) + geom_col() + theme_minimal()
+```
+
+### b. t-test
+t-test로 성별에 따른 수입의 차이를 분석한 결과, 통계적으로 유의미한 차이가 있음을 알 수 있었음
+- 데이터 수가 4634로 충분하나, Shapiro Test 결과 정규분포가 아니란 결론이 나와 Wilcox test로 진행
+- 귀무가설을 기각하는 p-value값이 나왔으므로, 성별에 따른 임금에 유의미한 차이가 존재한단 결론 내릴 수 있음
+- 
+```{r pressure, echo=FALSE}
+result_column <- sex_income$income
+sex_income$sex <- ifelse(sex_income$sex == 1, "Male", "Female")
+table(sex_income$sex)
+reason_column <- sex_income$sex
+data_name <- sex_income
+value1 <- "Male"
+value2 <- "Female"
+class(sex_income$sex)
+
+shapiro.test(sex_income$income[sex_income$sex == "Male"])
+shapiro.test(sex_income$income[sex_income$sex == "Female"])
+#정규분포 X
+
+# 등분산 확인
+var.test(result_column ~ reason_column, data = data_name)
+# 등분산 X
+
+# two sample t-test
+wilcox.test(result_column ~ reason_column, data = data_name)
+# 성별에 따른 급여 차이가 존재한다.
+```
+
+
+
+
+
+## 2. 나이와 월급의 관계
+결론 : 나이와 월급의 상관관계 없음. 
+원인 : 나이(연속) / 결과 : 월급(연속)
+분석방법 : 상관관계 - 선형회귀분석
+월급은 결측치가 있으니 전처리에서 결측치 제거 후 시행
+
+### a. 데이터 가공 및 파악
+```{r pressure, echo=FALSE}
+# 조사 안된 12030개의 데이터는 지워준다.
+birth_income <- welfare %>% select(birth, income) %>%
+  filter(!is.na(income)) %>%
+  mutate(age = 2015 - birth + 1)
+head(birth_income)
+table(is.na(birth_income$income))
+# FALSE
+table(birth_income$income == 9999)
+# FALSE
+```
+
+### b. 상관관계분석
+상관관계분석 결과 상관계수 0.14로 선형관계가 없음으로 결론
+상관관계가 없으므로 선형회귀분석 실시하지 않음
+```{r pressure, echo=FALSE}
+cor.test(birth_income$birth, birth_income$income)
+# cor = 0.1380003
+cor.test(birth_income$age, birth_income$income)
+# cor = -0.1380003
+
+plot(birth_income$birth, birth_income$income)
+```
+
+
+
+
+
+## 3. 연령대에 따른 월급 차이
+결론 : 연령대에 따라 임금 차이 통계적으로 유의함.
+원인 : 3개의 연령대(명목) / 결과 : 월급(연속)
+분석방법 : One-way ANOVA
+월급은 결측치가 있으니 전처리에서 결측치 제거 후 시행
+연령대를 지정 위해 Benning
+
+### a. 데이터 가공 및 파악
+```{r pressure, echo=FALSE}
+#1. Benning
+data <- birth_income %>% mutate(ageg = ifelse(age < 30, "young", ifelse(age < 60, "middle", "old")))
+head(data)
+table(data$ageg)  
+# middle    old  young 
+#   3349    801    484 
+
+
+#2. avg 파악
+avg <- data %>% group_by(ageg) %>%
+  summarise(mean = mean(income))
+ggplot(data=avg, aes(x=ageg, y=mean, fill = mean)) + geom_col() + theme_minimal()
+# 연령대에 맞게 순서 바꾸기
+ggplot(data=avg, aes(x=ageg, y=mean, fill = mean)) + geom_col() + theme_minimal() + scale_x_discrete(limits = c("young", "middle", "old"))
+
+```
+
+### b. ONE WAY ANOVA 
+```{r pressure, echo=FALSE}
+#정규분포 확인
+result_column = data$income
+reason_column = data$ageg
+data_name = data
+
+result = aov(result_column ~ reason_column, data = data_name)
+shapiro.test(resid(result))
+#p-value <= 0.05. 정규분포X -> kruskal.test
+             
+kruskal.test(result_column ~ reason_column, data = data_name)
+#	p-value <= 0.05. 통계적으로 집단들 사이엔 유의미한 차이가 존재
+library(pgirmess)
+kruskalmc(result_column, reason_column)
+#세 집단 모두 서로서로 차이가 있음을 확인.
+```
+
+
+
+
+
+## 4. 연령대와 성별에 따른 월급 차이
+# 원인 : 연령대(명목), 성별(명목) / 결과 : 월급(연속)
+# 분석방법 : Two-way ANOVA
+# 월급은 결측치가 있으니 전처리에서 결측치 제거 후 시행
+# 연령대를 지정해줘야하니 Benning이 필요
+
+### a. 데이터 가공 및 파악
+```{r pressure, echo=FALSE}
+#1. 데이터 가공
+df <- welfare %>% mutate(age = 2015 - birth + 1) %>%
+  mutate(ageg = ifelse(age < 30, "young", ifelse(age < 60, "middle", "old"))) %>%
+  select(age, ageg, sex, income) %>%
+  filter(!is.na(income))
+
+df$sex <- ifelse(df$sex == 1, "Male", "Female")
+head(df)
+str(df)
+
+
+#2. 연령대와 성별에 따른 월급 평균
+avg <- df %>% group_by(ageg, sex) %>% summarise(mean = mean(income))
+ggplot(data = avg, aes(ageg, mean, fill=sex)) + geom_col() + scale_x_discrete(limits = c("young", "middle", "old"))
+ggplot(data = avg, aes(ageg, mean, fill=sex)) + geom_col(position = "dodge") + scale_x_discrete(limits = c("young", "middle", "old"))
+avg1 <- df %>% group_by(age, sex) %>% summarise(mean = mean(income))
+ggplot(data = avg1, aes(age, mean, col=sex)) + geom_line()
+```
+
+### b.TWO WAY ANOVA

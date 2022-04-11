@@ -83,13 +83,6 @@ which.min(d$점수)
 d[which.min(d$점수), ]
 
 
-
-
-exam <- read.csv("../data/csv_exam.csv", fileEncoding = "euc-kr")
-exam
-
-exam %>% mutate(avg = (math+science+english)/3) %>% group_by(class) %>% summarize(mean = mean(avg), sum = sum(math+science+english), count = n()) %>% arrange(mean, sum)
-                
 # any(), all()
 # any는 or 연산자. all은 and 연산자
 # TRUE or FALSE로 리턴
@@ -176,18 +169,6 @@ test3(10, 20, "a")
 
 
 
-
-test3 <- function(...){
-  print(list(...))
-  for(i in list(...)){
-    print(i)
-  }
-}
-
-test3(10)
-test3(10, 20)
-test3(10, 20, 30)
-test3("3", "홍길동", 30)
 
 
 

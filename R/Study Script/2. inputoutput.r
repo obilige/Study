@@ -100,7 +100,7 @@ print("x + y의 결과는", as.charactre(z), "입니다.") # -> Error!
 # rda(r 전용 파일) : save(studentx, file = "../data/stud6.rda")
 #                    load(studentx, file = "../data/stud6.rda")
 
-studentx <- read.xlsx("../data/studentexcel.xlsx", sheetName = "emp2")
+studentx <- read.xlsx("../data/studentexcel.xlsx", sheetName = "emp2", fileEncoding = "euc-kr")
 studentx
 
 write.table(studentx, "../data/stud1.txt")

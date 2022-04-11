@@ -271,9 +271,5 @@ ggplot(economics, aes(date, unemploy)) + geom_line()
 #### 상자그래프 : geom_boxplot()
 ggplot(mpg, aes(drv, hwy)) + geom_boxplot()
 
-#이 기능을 다 외울 수 없어. 이 때 치트 페이지를 사용하면 좋다.
-#help -> cheetsheet -> Data Visualization with ggplot2
-
-install.packages("jsonlite")
-library(jsonlite)
-
+# 이 기능을 다 외울 수 없어. 이 때 치트 페이지를 사용하면 좋다.
+# help -> cheetsheet -> Data Visualization with ggplot2
