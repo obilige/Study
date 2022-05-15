@@ -1,0 +1,438 @@
+#### Elastic Search
+
+## DateFrame
+# 1. Index : 데이터베이스
+# 2. Shard : 파티션
+# 3. Type : 테이블
+# 4. Document : 행
+# 5. Field : 열
+# 6. Mapping : 스키마
+
+## Operation Structure
+# 1. Cluster : 데이터를 실제로 가지고 있는 노드의 모음(노드 집합) / 같은 클러스터 내 데이터만 공유 가능(원칙적으로, 방법은 있음)
+# 2. Node : 실제 데이터를 가지고 있는 단일 서버이며 클러스터 내 다른 노드와 정보를 주고 받을 수 있다.
+    - 노드는 다음과 같은 형태로 실행 가능하다.
+    - 1. 마스터 노드 : 클러스터 제어를 담당(핵심)
+    - 2. 데이터 노드(1.2TB) : 데이터를 보유하고 CRUD, 집계, 검색 등 데이터 관련 작업을 담당
+    - 3. 인제스트 노드 : 색인 전 전처리 작업을 담당(일반적으로 데이터노드에 [ node.ingest : true ] 로 설정되어 있다.)
+    - 4. 트라이브 노드 : 여러 클러스터를 제한적으로 연결해서 동시에 검색할 수 있도록 제공되는 특수한 노드
+    - 5. 코디네이팅 노드 : 검색이나 집계 시 분산 처리만을 목적으로 설정된 노드. 대량의 데이터를 처리할 경우에 효율적으로 사용할 수 있는 노드
+# 3. Index : 유사한 특성을 가지고 있는 문서를 모아둔 문서들의 컬렉션
+# 4. Document : 검색 대상이 되는 물리적인 실제 데이터 의미. JSON 형식으로 표현. 물리적인 샤드 형태로 나눠져서 다수의 노드로 분산 저장됨
+# 5. Shard : 인덱스 생성 시 5개의 샤드가 생성되고 5개 샤드에 분산 저장됨. 전체 데이터의 부분집합이지만, 단독으로 검색 서비스를 제공할 수 있다.
+    - 분산된 샤드에서 데이터로 조회되는 과정을 완벽히 Black Box로 제공
+    - 콘텐츠가 수평적으로 분할되어 하드웨어의 한계 극복
+    - 여러 노드에서 샤드를 통해 분산 처리되므로 성능이나 처리량 향상시킬 수 있다.
+# 6. Replica : 샤드의 복제본. 인덱스 생성시 레프리카 세트를 1개 생성한다. 읽기 분산에 유리. Failover 매커니즘 구현이다. 문제 생기면 레플리카에서 읽어온다.
+# 7. Segment : 문서(Document)들은 빠른 검색에 유리하도록 설계되고 특수한 형태로 저장. 루씬에 데이터가 색인되면 데이터는 최소한의 단위인 토큰으로 분리되고 저장되는데 이렇게 저장된 자료 구조를 세그먼트라 한다.
+
+
+
+
+#### ElasticSearch Install
+# 1. Java 설치 : JRE, JDK 설치. JDK의 경우, 1.8버전 이상을 설치해준다. -> 오라클 홈페이지
+# 2. ElasticSearch 설치 : 엘라스틱서치 홈페이지에서 받는 것 추천. root으로 받는 것 추천하지 않는다고 함
+# 3. mac OS : ./elasticsearch
+# 4. Window : cmd 창에서 cd 명령어로 압축을 푼 엘라스틱서치 경로로 이동 -> cd bin 명령으로 bin 폴더에 들어간 후 elasticsearch.bat으로 엘라스틱서치 실행
+    -> 로그에 started란 문구와 함께 포트번호 출력됨 예) 127.0.0.1:9200
+# 5. 웹브라우저의 주소창에 주소 입력해서 접속해보기
+# 6. Kibana 설치 : 키바나 다운로드 페이지에서 최신버전 다운. Config 디렉토리 열고 kibana.yml에 다음 내용을 추가하거나 주석을 해제함
+    - elasticsearch.url: "http://localhost:9200"
+    - 변경 후 kibana or kibana.bat 파일 실행해준다. 이 때 엘라스틱서치는 이미 실행 중이어야 한다.
+    - 웹 브라우저에서 http://localhost:5601 또는 http://127.0.0.1:5601에 접속한다.
+    - dev tools 에 들어가면 Query 사용해 데이터를 조회할 수 있다.
+# 교재 예제 프로젝트 : https://github.com/javacafe-project/elastic-book
+
+
+#### HTTP 메서드
+
+# 1. GET : 데이터조회 // SELECT
+# 2. PUT : 데이터생성 // INSERT
+# 3. POST : 인덱스 업데이트, 데이터 조회 // UPDATE, SELECT
+# 4. DELETE : 데이터삭제 // DELETE
+# 5. HEAD : 데이터조회 // 
+
+
+#### 노드 및 샤드, 레플리카 세팅방법
+path.data: /var/lib/elasticsearch 다음과 같은 설정
+※ <key>: <value>방식으로 설정하는데, :과 <value>사이 띄어쓰기가 항상 있음을 알자.
+
+- cluster.name: "<클러스터명>" -> 클러스터명을 설정한다. 
+      노드들이 같은 클러스터명을 가지면 바인딩된다.
+- node.name: "<노드명>" -> 실행중인 각각의 elasticsearch노드들을 구분할 수 있는 노드이름을 설정할 수 있다.
+- node.attr.<key>: "value" -> 노드별로 속성을 부여하기 위한 네임스페이스를 지정한다.
+
+    {
+        "setting" : {
+            "index" : {
+                "number_of_shards" : 3,
+                "number_of_replicas" : 0
+            }
+        }
+    }
+
+- path.logs: "<경로>" -> ElasticSearch 실행로그를 저장하는 경로를 지정한다.
+디폴트는 설치된 홈경로 아래의 logs 디렉토리다.
+
+
+
+
+
+
+
+
+#### Basic Form
+
+{
+    "size" : ,
+    "from" : ,
+    "timeout : ,
+    "_source" : ,
+    "query" : {} ,
+    "aggs" : {} ,
+    "sort" : {} ,
+}
+
+# 1. size : 리턴 받을 결과 갯수 
+# 2. from : 몇번째 문서부터 가져올지 결정
+# 3. timeout : 검색 요청 시간, 너무 짧으면 데이터 가져오지 못함. default는 0
+# 4. _source : 데이터 필드 선택해서 출력하고 싶을 때 사용
+# 5. query : 검색 조건문 입력 공간
+# 6. aggs : 통계 및 집계 데이터를 사용할 때 입력하는 공간
+# 7. sort : 문서 결과를 어떻게 출력할지에 대한 조건을 사용하는 공간
+
+
+#### return
+
+{
+    "took" :
+
+    "timeout" :
+
+    "_shard" : {
+        "total" : ,
+        "successful" : ,
+        "failed" :
+    },
+
+    "hits" : {
+        "total" : ,
+        "max_score" : ,
+        "hits" : []
+    }
+    
+
+}
+
+# 1. took : 쿼리를 실행한 시간을 나타낸다.
+# 2. timeout : 쿼리 시간이 초과할 경우를 나타낸다.
+# 3. _shard / total : 쿼리를 요청한 전체 샤드의 개수를 나타낸다.
+# 4. _shard / successful : 검색요청에 성공한 샤드의 개수를 나타낸다.
+# 5. _shard / failed : 검색요청에 실패한 샤드의 개수를 나타낸다.
+# 6. hits / total : 검색어에 매칭딘 문서의 전체 개수를 나타낸다.
+# 7. hits / max_score : 일치하는 문서의 스코어 값 중 가장 높은 값을 출력한다.
+# 8. hits / hits : 각 문서 정보와 스코어 값을 보여준다.
+
+
+
+#### 1. 쿼리와 필터
+
+# 쿼리 : 전문 검색 시 사용 / 상대적으로 느림
+# 필터 : Yes or No / 상대적으로 빠름
+# 목적에 따라 유용하게 활용
+
+
+#### 2. Query DSL 주요 파라미터
+
+### Multi Index : 한번의 요청으로 다수의 인덱스에서 공통된 값을 검색할 수 있다.
+# movie_search와 movie_auto 인덱스 모두 repGenreNm 필드를 공통적으로 가지고 있음
+# 예
+POST movie_search, movie_auto/_search
+{
+    "query" : {
+        "term" : {
+            "repGenreNm" : "다큐멘터리"
+        }
+    }
+}
+
+
+### *를 와일드카드로 사용할 수 있다.
+# 특정 로그가 날짜별로 생성되고 인덱스명이 "log-2019-01-01" 형태라면?
+# 쉽게 Multi Index 검색이 가능해진다.
+POST /log-2019-*/_search
+    -> 2019년에 생성된 인덱스 내 데이터 다 검색하기
+
+
+### 쿼리 결과 페이징 : 페이지 구현(웹상에서 가장 많이 사용)
+# 예
+# 첫번째 페이지
+POST movie_search/_search
+{
+    "from":0,
+    "size":5,
+    "query":{
+        "term":{
+            "repNationNm":"한국"
+        }
+    }
+}
+# 두번째 페이지
+POST movie_search/_search
+{
+    "from":5,
+    "size":5,
+    "query":{
+        "term":{
+            "repNationNm":"한국"
+        }
+    }
+}
+
+### 쿼리 결과 정렬 : sort 파라미터 / 검색 유사도(디폴트값) 아닌 다른 기준으로 재정렬하고 싶을 때 사용
+# 기본형태
+# asc(오름차순)와 desc(내림차순)
+POST movie_search/_search
+{
+    "query":{
+        "term":{
+            "repNationNm":"한국"
+        }
+    },
+    "sort":{
+        "prtdYear":{
+            "order" : "asc"
+        }
+    }
+}
+# 두번째 정렬을 추가로 입력하고 싶은 경우
+POST movie_search/_search
+{
+    "query":{
+        "term":{
+            "repNationNm":"한국"
+        }
+    },
+    "sort":{
+        "prtdYear":{
+            "order" : "asc"
+        },
+        "_score":{
+            "order":"desc"
+        }
+    }
+}
+
+### operator 설정
+# and, or 설정방법에 대해
+# elk의 디폴트값은 or
+POST movie_search/_search
+{
+    "query":{
+        "match":{
+            "movieNM":{
+                "query":"자전거왕 엄북동",
+                "operator":"and"
+            }            
+        }
+    }
+}
+
+### minimum_should_match
+# 텀의 개수가 몇 개 이상 매칭될 때만 검색 결과로 나오게 할 수 있게 만드는 기능
+# or로 검색시 너무 많은 검색 결과가 나올 수 있음
+# 2개만 나오게 만든다면?
+POST movie_search/_search
+{
+        "query":{
+        "match":{
+            "movieNM":{
+                "query":"자전거왕 엄북동",
+                "minimum_should_match":2
+            }            
+        }
+    }
+}
+
+
+### fuzziness 설정
+# 유사값을 찾는 것
+# 레벤슈타인 편집 거리 알고리즘을 기반으로 문서의 필드값을 여러 번 변경하는 방식으로 동작.
+# 예) Fly High -> Fli High로 검색해도 나옴
+POST movie_search/_search
+{
+        "query":{
+        "match":{
+            "movieNM":{
+                "query":"Fli High",
+                "fuzziness":"1"
+            }            
+        }
+    }
+}
+
+
+### boost 설정
+# 검색에서 가장 많이 사용하는 파라미터 중 하나
+# 관련성이 높은 필드나 키워드에 가중치를 더 줄 수 있게 해준다.
+# 예) 한글 영화 제목 vs 영어 영화 제목 / 두 가지 제목 필드(칼럼)이 있을 때 한글 영화 제목에 더 3배 가중치를 둔다면?
+# -> field에 ^3
+POST movie_search/_search
+{
+    "query":{
+        "multi_match":{
+                "query":"Fly",
+                "field":["movieNm^3", "movieNmEn]
+            }            
+        }
+    }
+}
+
+
+
+#### Query DSL의 주요 쿼리
+# Query DSL은 고급 검색 기능
+# 다양한 조건을 붙여서 검색할 수 있다.
+# 데이터를 뽑을 때 사용하면 좋을 듯
+
+### Match All Query
+# 색인에 모든 문서를 검색하는 쿼리
+# "query : {match_all:{}}
+
+POST movie_search/_search
+{
+    "query":{
+        "match_all":{}
+    }            
+}
+
+
+### match Query
+# 검색어가 검색되어야할 경우에 사용
+# 텀으로 분리된 것들에 대해 검색을 수행하므로 이를 맞추라는 명령어
+# 검색어에 그대 / 장미란 형태소가 들어가있는 도큐멘트를 모두 출력한다.
+# 오퍼레이터 디폴트값이 or 이므로 그대 / 장미 둘 중 하나만 들어있어도 출력된다.
+# 그대, 장미가 동시에 들어가 있는 데이터만 조회하려면 operator를 and로 지정해줘야한다.
+
+POST movie_search/_search
+{
+    "query":{
+        "match":{
+            "movieNm":"그대 장미"
+        }
+    }            
+}
+
+
+### Multi Match Query
+# 여러 개의 필드를 대상으로 검색할 때 사용한다
+POST movie_search/_search
+{
+    "query":{
+        "multi_match":{
+            "query": "가족"
+            "fields":["movieNm", movieNmEn]
+        }
+    }            
+}
+
+
+
+### Term Query
+# 텍스트 형태의 데이터 값을 검색할 때 두가지 매핑 방식 지원
+# 1. text : 필드에 데이터가 저장되기 전에 역색인 구조로 바뀌어 저장
+# 2. Keyword : 데이터 변형없이 그대로 필드에 저장
+# Term Query는 Keyword 데이터 타입, 즉 형태소로 쪼개지 않고 원본 그대로 저장된 텍스트 데이터를 검색할 때 사용하는 명령어다.
+POST movie_search/_search
+{
+    "query":{
+        "multi_match":{
+            "query": "가족"
+            "fields":["movieNm", movieNmEn]
+        }
+    }            
+}
+
+
+
+
+### Bool Query
+# 하나의 쿼리나 여러 개의 쿼리를 조합해서 더 높은 스코어를 가진 쿼리 조건으로 검색을 수행할 수 있다.
+# Bool Query를 상위에 두고 하단에 여러 쿼리들을 사용해 복잡한 조건의 커리문을 작성할 수 있음
+# 하단에 여러 쿼리들의 스코어를 비교해 최선의 쿼리를 Bool Query로 판단하고 검색해주는 기능이라 이해
+
+# 다음은 Bool Query의 기본구조
+{
+    "query" : {
+        "bool" : {
+            "must":[],
+            "must_not":[],
+            "should":[],
+            "filter":[]
+        }
+    }
+}
+# must : [필드] = [AND = 조건] 반드시 조건에 만족하는 문서만 검색된다.
+# must_not : [필드] = [AND =! 조건] 조건을 만족하지 않는 문서가 검색된다.
+# should : [필드] = [OR = 조건] 여러 조건 중 하나를 포함하는 문서가 검색된다.
+# filter : [필드] = [IN = 조건] 조건을 포함하고 있는 문서 출력 * 이 파라미터를 사용하면 스코어별로 정렬되지 않음
+
+# 예제) 영화 대표장르가 "코미디"이고 "제작 국가"는 한국이면서 "영화타입" 중 단편이 제외된 문서만 검색해보자!
+{
+    "query" : {
+        "bool" : {
+            "must" : [
+                {
+                    "term":{
+                        "repGenreNm":"코미디"
+                    }
+                },
+                {
+                    "match":{
+                        "repNationNm":"한국"
+                    }
+                }
+            ],
+            "must_not" : [
+                {
+                    "match":{
+                        "typeNm":"단편"
+                    }
+                }
+            ]
+        }
+    }
+}
+
+
+
+### Query String
+# 내장된 쿼리 분석기 사용하는 쿼리
+
+POST movie_search/_search
+{
+    "query" : {
+        "query_string": {
+            "default_field": "movieNm",
+            "query": "(가정) AND (어린이 날)"
+        }
+    }
+}
+
+# 가정과 어린이날이 각각 내장된 형태소 분석기를 통해 분석되며, 분석된 텀을 대상으로 AND 조건과 만족하는 문서를 찾아 돌려준다.
+# 어린이 날로 뛰어서 입력했는데 이 쿼리에선 공백은 연산자로 사용되지 않으며 입력된 텍스트 그대로 형태소 분석기에 전달된다.
+
+
+
+### Prefix Query
+# 접두어가 있는 도큐멘트는 모두 검색하는데 사용한다.
+# 역색된 텀은 사전순으로 정렬되고 Prefix Query는 저장된 텀들을 스캔해서 일치하는 텀을 찾는 원리로 작동된다.
+# 자전차로 시작되는 영화 데이터 찾기
+POST movie_search/_search
+{
+    "query": {
+        "prefix": {
+            "movieNm": "자전차"
+        }
+    }
+}
